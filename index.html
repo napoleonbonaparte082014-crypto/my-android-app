@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Contacts</title>
+<script src="jspdf.umd.min.js"></script>
+<style>
+.hist { font-size: 13px; color: var(--muted); }
+.hist summary { cursor: pointer; padding: 4px 0; font-weight: 600; }
+.hist ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.hist li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hist .when { font-variant-numeric: tabular-nums; }
+.hist .badge { font-size: 12px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.toolbar input { flex: 1 1 200px; }
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --fg: #16202b; --muted: #5d6b79; --line: #dde2e8;
+  --accent: #0b6e69; --accent-fg: #ffffff; --danger: #b3261e;
+  --due-bg: #fdf0cf; --due-fg: #7a5600; --over-bg: #f8dcda; --over-fg: #8f2620; --soon-bg: #e6ebf1; --soon-fg: #3b4a5a;
+  --st-new-bg: #e6ebf1; --st-new-fg: #3b4a5a; --st-contacted-bg: #fdf0cf; --st-contacted-fg: #7a5600;
+  --st-interested-bg: #dcecf9; --st-interested-fg: #1b4f80; --st-demo-bg: #e9e2f7; --st-demo-fg: #51348f;
+  --st-won-bg: #d8f0e0; --st-won-fg: #14602f; --st-lost-bg: #f8dcda; --st-lost-fg: #8f2620;
+  --st-custom-bg: #dff1ef; --st-custom-fg: #0b5551;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11171d; --surface: #1a222b; --fg: #e8edf2; --muted: #93a1af; --line: #2c3743;
+    --accent: #4fc4bc; --accent-fg: #07201e; --danger: #ff8a80;
+    --due-bg: #3d3216; --due-fg: #f0cf75; --over-bg: #46201e; --over-fg: #f5a29b; --soon-bg: #2a3541; --soon-fg: #c3cfdb;
+    --st-new-bg: #2a3541; --st-new-fg: #c3cfdb; --st-contacted-bg: #3d3216; --st-contacted-fg: #f0cf75;
+    --st-interested-bg: #1b3247; --st-interested-fg: #8cc3f0; --st-demo-bg: #2f2848; --st-demo-fg: #c4b2f2;
+    --st-won-bg: #17382a; --st-won-fg: #7fd9a2; --st-lost-bg: #46201e; --st-lost-fg: #f5a29b;
+    --st-custom-bg: #17393a; --st-custom-fg: #8fe0d9;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.45;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 24px; margin: 0; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+form .full { grid-column: 1 / -1; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+input, select { font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; width: 100%; min-width: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+button { font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; border-radius: 8px; padding: 10px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.quiet { border-color: transparent; background: transparent; color: var(--muted); padding: 8px; font-weight: 500; }
+button.danger { color: var(--danger); }
+.err { color: var(--danger); font-size: 13px; min-height: 18px; margin: 8px 0 0; }
+.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--due-bg); color: var(--due-fg); border-radius: 12px; padding: 12px 14px; font-weight: 600; }
+.banner button { background: transparent; color: inherit; border-color: currentColor; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chip span { font-variant-numeric: tabular-nums; opacity: .7; margin-left: 4px; }
+.list { padding: 0; }
+.row { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.who { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.who b { overflow-wrap: anywhere; }
+.phone, .place { color: var(--muted); overflow-wrap: anywhere; }
+.phone a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.rem { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.b-over { background: var(--over-bg); color: var(--over-fg); }
+.b-today { background: var(--due-bg); color: var(--due-fg); }
+.b-soon { background: var(--soon-bg); color: var(--soon-fg); }
+.rnote { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row select { width: auto; max-width: 100%; font-weight: 600; font-size: 14px; padding: 7px 10px; border-radius: 999px; border-color: transparent; }
+.newst { display: flex; gap: 6px; }
+.s-New { background: var(--st-new-bg); color: var(--st-new-fg); }
+.s-Contacted { background: var(--st-contacted-bg); color: var(--st-contacted-fg); }
+.s-Interested { background: var(--st-interested-bg); color: var(--st-interested-fg); }
+.s-Demo { background: var(--st-demo-bg); color: var(--st-demo-fg); }
+.s-Won { background: var(--st-won-bg); color: var(--st-won-fg); }
+.s-Lost { background: var(--st-lost-bg); color: var(--st-lost-fg); }
+.s-Custom { background: var(--st-custom-bg); color: var(--st-custom-fg); }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Contacts</h1>
+    <p class="sub">Name, phone, village, taluk, status and reminder.</p>
+  </div>
+
+  <div class="panel">
+    <form id="f" autocomplete="off">
+      <label class="full" for="fName">Name<input id="fName" maxlength="120" placeholder="Full name"></label>
+      <label class="full" for="fPhone">Phone number<input id="fPhone" maxlength="30" inputmode="tel" placeholder="98xxxxxxxx"></label>
+      <label for="fVillage">Village<input id="fVillage" maxlength="80" placeholder="Village"></label>
+      <label for="fTaluk">Taluk<input id="fTaluk" maxlength="80" placeholder="Taluk"></label>
+      <label class="full" for="fStatus">Status<input id="fStatus" list="statusList" maxlength="40" placeholder="Type or pick a status"></label>
+      <datalist id="statusList"></datalist>
+      <label for="fRemind">Remind me on<input id="fRemind" type="date"></label>
+      <label for="fRNote">Reminder note<input id="fRNote" maxlength="140" placeholder="Call about demo"></label>
+      <button class="primary full" id="fSave" type="submit">Add contact</button>
+    </form>
+    <p class="err" id="err" role="alert"></p>
+  </div>
+
+  <div id="banner"></div>
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Search name, number, village or taluk" aria-label="Search">
+    <button class="primary" id="pdfAll">Download PDF</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="panel list" id="list"></div>
+  <p class="note" id="mode"></p>
+</div>
+
+<script>
+const DEFAULTS = ["New", "Contacted", "Interested", "Demo booked", "Won", "Lost"];
+const KNOWN = { "New": "s-New", "Contacted": "s-Contacted", "Interested": "s-Interested", "Demo booked": "s-Demo", "Won": "s-Won", "Lost": "s-Lost" };
+const cls = s => KNOWN[s] || "s-Custom";
+const $ = id => document.getElementById(id);
+const LS = "contacts-app-v1";
+let contacts = [];
+let filter = "All", editingId = null, pendingDelete = null, newStatusFor = null;
+
+function load() {
+  try { contacts = JSON.parse(localStorage.getItem(LS) || "[]"); } catch (e) { contacts = []; }
+  contacts.forEach(c => { if (!c.history || !c.history.length) c.history = [{ status: c.status, at: c.createdAt || Date.now() }]; });
+}
+/* Apply changes to a contact. Every status change adds a new history entry; old ones are kept. */
+function merge(c, data) {
+  const n = { ...c, ...data };
+  if (data.status && data.status !== c.status) n.history = [...(c.history || []), { status: data.status, at: Date.now() }];
+  return n;
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) + ", " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+function persist() { try { localStorage.setItem(LS, JSON.stringify(contacts)); } catch (e) { showErr("Could not save on this phone."); } }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function todayStr() { const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+function fmtDate(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); }
+function allStatuses() {
+  const list = [...DEFAULTS];
+  contacts.forEach(c => { if (c.status && !list.some(s => s.toLowerCase() === c.status.toLowerCase())) list.push(c.status); });
+  return list;
+}
+function canonStatus(v) { return allStatuses().find(s => s.toLowerCase() === v.toLowerCase()) || v; }
+const isDue = c => c.remindOn && c.remindOn <= todayStr();
+
+/* ---- Phone notifications (9:00 AM on the reminder date) ---- */
+const LN = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null;
+async function ensurePermission() {
+  if (!LN) return false;
+  try { let p = await LN.checkPermissions(); if (p.display !== "granted") p = await LN.requestPermissions(); return p.display === "granted"; }
+  catch (e) { return false; }
+}
+async function syncNotifications() {
+  if (!LN) return;
+  try {
+    const pending = await LN.getPending();
+    if (pending.notifications.length) await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+    if (!(await ensurePermission())) return;
+    const now = Date.now(), list = [];
+    contacts.forEach(c => {
+      if (!c.remindOn || !c.nid) return;
+      const [y, m, d] = c.remindOn.split("-").map(Number);
+      const at = new Date(y, m - 1, d, 9, 0, 0);
+      if (at.getTime() <= now) return;
+      list.push({ id: c.nid, title: "Reminder: " + c.name, body: [c.remindNote, c.phone].filter(Boolean).join(" · "), schedule: { at, allowWhileIdle: true } });
+    });
+    if (list.length) await LN.schedule({ notifications: list });
+  } catch (e) {}
+}
+function newNid() { let n; do { n = Math.floor(Math.random() * 2000000000) + 1; } while (contacts.some(c => c.nid === n)); return n; }
+
+function showErr(m) { $("err").textContent = m || ""; }
+
+function render() {
+  const q = $("q").value.trim().toLowerCase();
+  const statuses = allStatuses();
+  $("statusList").innerHTML = statuses.map(s => `<option value="${esc(s)}"></option>`).join("");
+  const due = contacts.filter(isDue);
+  const counts = { All: contacts.length };
+  statuses.forEach(s => counts[s] = contacts.filter(c => c.status === s).length);
+  $("banner").innerHTML = due.length && filter !== "Due"
+    ? `<div class="banner"><span>${due.length} reminder${due.length > 1 ? "s" : ""} due today or overdue</span><button id="showDue">Show</button></div>` : "";
+  $("chips").innerHTML = [["All", "All"], ["Due", "Reminders due"], ...statuses.map(s => [s, s])].map(([k, label]) =>
+    `<button class="chip" data-f="${esc(k)}" aria-pressed="${filter === k}">${esc(label)}<span>${k === "Due" ? due.length : counts[k]}</span></button>`).join("");
+  let rows = contacts.filter(c =>
+    (filter === "All" || (filter === "Due" ? isDue(c) : c.status === filter)) &&
+    (!q || [c.name, c.village, c.taluk].some(v => (v || "").toLowerCase().includes(q)) || (c.phone || "").replace(/\s/g, "").includes(q.replace(/\s/g, ""))));
+  if (filter === "Due") rows = rows.slice().sort((a, b) => a.remindOn.localeCompare(b.remindOn));
+  if (!rows.length) { $("list").innerHTML = `<div class="empty">${contacts.length ? "No contacts match this view." : "No contacts yet. Add the first one above."}</div>`; return; }
+  const today = todayStr();
+  $("list").innerHTML = rows.map(c => {
+    let rem = "";
+    if (c.remindOn) {
+      const k = c.remindOn < today ? ["b-over", "Overdue · " + fmtDate(c.remindOn)] : c.remindOn === today ? ["b-today", "Today"] : ["b-soon", fmtDate(c.remindOn)];
+      rem = `<div class="rem"><span class="badge ${k[0]}">${esc(k[1])}</span>${c.remindNote ? `<span class="rnote">${esc(c.remindNote)}</span>` : ""}<button class="quiet" data-done>Done</button></div>`;
+    }
+    const place = [c.village, c.taluk && "Taluk " + c.taluk].filter(Boolean).join(", ");
+    const opts = statuses.includes(c.status) ? statuses : [...statuses, c.status];
+    const statusCell = newStatusFor === c.id
+      ? `<div class="newst"><input id="newStatusInput" maxlength="40" placeholder="New status" aria-label="New status"><button class="primary" data-newsave>Save</button><button class="quiet" data-newcancel>Cancel</button></div>`
+      : `<select class="${cls(c.status)}" data-status aria-label="Status for ${esc(c.name)}">${opts.map(s => `<option${s === c.status ? " selected" : ""}>${esc(s)}</option>`).join("")}<option value="__new__">+ Add new status…</option></select>`;
+    return `<div class="row" data-id="${esc(c.id)}">
+      <div class="top"><div class="who"><b>${esc(c.name)}</b>
+        <span class="phone"><a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a></span>
+        ${place ? `<span class="place">${esc(place)}</span>` : ""}</div>
+        <div><button class="quiet" data-edit>Edit</button><button class="quiet danger" data-del>${pendingDelete === c.id ? "Confirm" : "Delete"}</button></div></div>
+      ${rem}
+      <div class="bottom">${statusCell}<button class="quiet" data-pdf>PDF</button></div>
+      <details class="hist"><summary>Status history (${(c.history || []).length})</summary><ul>${(c.history || []).slice().reverse().map(h =>
+        `<li><span class="when">${esc(fmtTime(h.at))}</span><span class="badge ${cls(h.status)}">${esc(h.status)}</span></li>`).join("")}</ul></details>
+    </div>`;
+  }).join("");
+  const ni = $("newStatusInput"); if (ni) ni.focus();
+}
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("fName").value.trim(), phone = $("fPhone").value.trim(), statusRaw = $("fStatus").value.trim();
+  if (!name || !phone) { showErr("Enter a name and a phone number."); return; }
+  if (!/\d{5,}/.test(phone.replace(/[\s\-()+.]/g, ""))) { showErr("Phone number should have at least 5 digits."); return; }
+  if (!statusRaw) { showErr("Type or pick a status."); return; }
+  showErr("");
+  const data = { name, phone, status: canonStatus(statusRaw), village: $("fVillage").value.trim(), taluk: $("fTaluk").value.trim(), remindOn: $("fRemind").value, remindNote: $("fRNote").value.trim() };
+  if (editingId) contacts = contacts.map(c => c.id === editingId ? merge(c, data) : c);
+  else contacts.unshift({ id: "c" + Date.now(), nid: newNid(), createdAt: Date.now(), ...data, history: [{ status: data.status, at: Date.now() }] });
+  persist();
+  editingId = null; $("fSave").textContent = "Add contact"; $("f").reset();
+  render();
+  await syncNotifications();
+});
+
+$("q").addEventListener("input", render);
+
+async function patch(id, data) { contacts = contacts.map(c => c.id === id ? merge(c, data) : c); persist(); render(); await syncNotifications(); }
+
+/* ---- PDF ---- */
+async function makePdf(list, title, fileName) {
+  if (!window.jspdf) { showErr("PDF tool did not load."); return; }
+  const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40, maxW = W - M * 2;
+  let y = M;
+  const need = h => { if (y + h > H - M) { doc.addPage(); y = M; } };
+  const text = (t, size, bold, color, indent = 0) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...(color || [22, 32, 43]));
+    doc.splitTextToSize(String(t), maxW - indent).forEach(l => { need(size + 4); doc.text(l, M + indent, y + size); y += size + 4; });
+  };
+  text(title, 18, true);
+  text("Created " + fmtTime(Date.now()) + "  ·  " + list.length + " contact" + (list.length === 1 ? "" : "s"), 10, false, [93, 107, 121]);
+  y += 8;
+  list.forEach((c, i) => {
+    need(70);
+    doc.setDrawColor(221, 226, 232); doc.line(M, y, W - M, y); y += 8;
+    text((i + 1) + ".  " + c.name, 13, true);
+    text("Phone: " + c.phone, 11, false, null, 16);
+    const place = [c.village && "Village: " + c.village, c.taluk && "Taluk: " + c.taluk].filter(Boolean).join("   ");
+    if (place) text(place, 11, false, null, 16);
+    text("Current status: " + c.status, 11, true, [11, 110, 105], 16);
+    if (c.remindOn) text("Reminder: " + fmtDate(c.remindOn) + (c.remindNote ? " – " + c.remindNote : ""), 11, false, null, 16);
+    text("Status history:", 10, true, [93, 107, 121], 16);
+    (c.history || []).slice().reverse().forEach(h => text(fmtTime(h.at) + "   " + h.status, 10, false, null, 30));
+    y += 6;
+  });
+  const name = fileName || "contacts-" + todayStr() + ".pdf";
+  const P = window.Capacitor && window.Capacitor.Plugins;
+  if (P && P.Filesystem && P.Share) {
+    try {
+      const b64 = doc.output("datauristring").split(",")[1];
+      const saved = await P.Filesystem.writeFile({ path: name, data: b64, directory: "CACHE" });
+      await P.Share.share({ title: name, url: saved.uri, dialogTitle: "Save or send PDF" });
+      return;
+    } catch (e) { if (e && /cancel/i.test(String(e.message || e))) return; }
+  }
+  doc.save(name);
+}
+function currentList() {
+  const q = $("q").value.trim().toLowerCase();
+  let rows = contacts.filter(c =>
+    (filter === "All" || (filter === "Due" ? isDue(c) : c.status === filter)) &&
+    (!q || [c.name, c.village, c.taluk].some(v => (v || "").toLowerCase().includes(q)) || (c.phone || "").replace(/\s/g, "").includes(q.replace(/\s/g, ""))));
+  return rows;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.target.id !== "newStatusInput") return;
+  const id = e.target.closest(".row").dataset.id;
+  if (e.key === "Enter") { e.preventDefault(); saveNewStatus(id); }
+  if (e.key === "Escape") { newStatusFor = null; render(); }
+});
+async function saveNewStatus(id) {
+  const v = ($("newStatusInput").value || "").trim();
+  newStatusFor = null;
+  if (!v) { render(); return; }
+  await patch(id, { status: canonStatus(v) });
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.id === "showDue") { filter = "Due"; render(); return; }
+  if (t.id === "pdfAll") {
+    const list = currentList();
+    if (!list.length) { showErr("No contacts to put in a PDF."); return; }
+    showErr(""); await makePdf(list, "Contacts" + (filter !== "All" ? " – " + (filter === "Due" ? "Reminders due" : filter) : ""));
+    return;
+  }
+  if (t.dataset.f) { filter = t.dataset.f; render(); return; }
+  const row = t.closest(".row"); if (!row) return;
+  const id = row.dataset.id, c = contacts.find(x => x.id === id); if (!c) return;
+  if ("pdf" in t.dataset) await makePdf([c], c.name, "contact-" + c.name.replace(/[^\w]+/g, "-").toLowerCase() + ".pdf");
+  else if ("newsave" in t.dataset) saveNewStatus(id);
+  else if ("newcancel" in t.dataset) { newStatusFor = null; render(); }
+  else if ("done" in t.dataset) await patch(id, { remindOn: "", remindNote: "" });
+  else if ("edit" in t.dataset) {
+    editingId = id;
+    $("fName").value = c.name || ""; $("fPhone").value = c.phone || ""; $("fVillage").value = c.village || ""; $("fTaluk").value = c.taluk || "";
+    $("fStatus").value = c.status || ""; $("fRemind").value = c.remindOn || ""; $("fRNote").value = c.remindNote || "";
+    $("fSave").textContent = "Save changes"; window.scrollTo({ top: 0 }); $("fName").focus();
+  } else if ("del" in t.dataset) {
+    if (pendingDelete !== id) { pendingDelete = id; render(); setTimeout(() => { if (pendingDelete === id) { pendingDelete = null; render(); } }, 4000); return; }
+    pendingDelete = null; contacts = contacts.filter(x => x.id !== id); persist(); render(); await syncNotifications();
+  }
+});
+document.addEventListener("change", async e => {
+  const sel = e.target.closest("[data-status]"); if (!sel) return;
+  const id = sel.closest(".row").dataset.id;
+  if (sel.value === "__new__") { newStatusFor = id; render(); return; }
+  await patch(id, { status: sel.value });
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+
+load(); render(); syncNotifications();
+$("mode").textContent = LN ? "Contacts are saved on this phone. Reminders notify at 9:00 AM." : "Contacts are saved on this device. Phone notifications work in the installed app.";
+</script>
+</body>
+</html>
